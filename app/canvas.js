@@ -1,6 +1,125 @@
-/**
+﻿/**
  * Created by Rafał Zawadzki on 2014-10-13.
  */
+
+var TRANSLATE_DEFAULT_STEP = 12;
+var ZOOM_COEFFICIENT = 250;
+var TRANSLATE_ADJUSTMENT = 5; //higher -> less movement on z axis
+var ZOOM_CHANGE = 20;
+var ROTATE_X = 3;//10
+var ROTATE_Y = 3;//10
+var ROTATE_Z = 4;//15
+var ZOOM_MAX = 600;
+var ZOOM_MIN = 1;
+
+function Point3D(x, y, z) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+
+    this.translateUP = translateUP;
+    this.translateDown = translateDown;
+    this.translateLeft = translateLeft;
+    this.translateRight = translateRight;
+    this.translateForward = translateForward;
+    this.translateBack = translateBack;
+
+    this.rotateX = rotateX;
+    this.rotateY = rotateY;
+    this.rotateZ = rotateZ;
+
+    function translateUP() {
+        this.y = this.y - TRANSLATE_DEFAULT_STEP;
+    }
+
+    function translateLeft() {
+        this.x = this.x + TRANSLATE_DEFAULT_STEP;
+    }
+
+    function translateDown() {
+        this.y = this.y + TRANSLATE_DEFAULT_STEP;
+    }
+
+    function translateRight() {
+        this.x = this.x - TRANSLATE_DEFAULT_STEP;
+    }
+
+    function translateForward() {
+        this.z = this.z - (TRANSLATE_DEFAULT_STEP / TRANSLATE_ADJUSTMENT);
+    }
+
+    function translateBack() {
+        this.z = this.z + (TRANSLATE_DEFAULT_STEP / TRANSLATE_ADJUSTMENT);
+    }
+
+    function rotateX(dir) {
+        var rot = ROTATE_X;
+        if (dir != 1)
+            rot = -rot;
+        var tmpY = this.y;
+        this.y = this.y * Math.cos(rot * Math.PI / 180) - this.z * Math.sin(rot * Math.PI / 180);
+        this.z = tmpY * Math.sin(rot * Math.PI / 180) + this.z * Math.cos(rot * Math.PI / 180);
+    }
+
+    function rotateY(dir) {
+        var rot = ROTATE_Y;
+        if (dir != 1)
+            rot = -rot;
+        var tmpX = this.x;
+        this.x = this.x * Math.cos(rot * Math.PI / 180) + this.z * Math.sin(rot * Math.PI / 180);
+        this.z = -tmpX * Math.sin(rot * Math.PI / 180) + this.z * Math.cos(rot * Math.PI / 180);
+    }
+
+    function rotateZ(dir) {
+        var rot = ROTATE_Z;
+        if (dir != 1)
+            rot = -rot;
+        var tmpX = this.x;
+        this.x = this.x * Math.cos(rot * Math.PI / 180) - this.y * Math.sin(rot * Math.PI / 180);
+        this.y = tmpX * Math.sin(rot * Math.PI / 180) + this.y * Math.cos(rot * Math.PI / 180);
+    }
+}
+
+function Vector3D(A, B) {
+    this.A = A;
+    this.B = B;
+    this.color = "#000000";
+
+    this.draw = draw;
+
+    function draw(ctx) {
+        if (this.A.z <= 0 && this.B.z <= 0) {
+            return;
+        }
+
+        var tmpAX, tmpAY, tmpBX, tmpBY, tmpA, tmpB;
+
+        tmpAX = this.A.x * ZOOM_COEFFICIENT / (this.A.z);
+        tmpAY = this.A.y * ZOOM_COEFFICIENT / (this.A.z);
+        tmpBX = this.B.x * ZOOM_COEFFICIENT / (this.B.z);
+        tmpBY = this.B.y * ZOOM_COEFFICIENT / (this.B.z);
+
+        if (this.A.z <= 0) {
+            tmpA = notVisible(this.B, this.A);
+            tmpAX = tmpA.x * ZOOM_COEFFICIENT / (tmpA.z);
+            tmpAY = tmpA.y * ZOOM_COEFFICIENT / (tmpA.z);
+        }
+
+        if (this.B.z <= 0) {
+            tmpB = notVisible(this.A, this.B);
+            tmpBX = tmpB.x * ZOOM_COEFFICIENT / (tmpB.z);
+            tmpBY = tmpB.y * ZOOM_COEFFICIENT / (tmpB.z);
+        }
+
+        var PointATransformSystem = transformCoordinateSystem(tmpAX, tmpAY);
+        var PointBTransformSystem = transformCoordinateSystem(tmpBX, tmpBY);
+        ctx.beginPath();
+        ctx.strokeStyle = this.color;
+        ctx.moveTo(PointATransformSystem.transformedX, PointATransformSystem.transformedY);
+        ctx.lineTo(PointBTransformSystem.transformedX, PointBTransformSystem.transformedY);
+        ctx.stroke();
+    }
+}
 
 function notVisible(vis, notvis) {
     var p = new Point3D();
@@ -167,18 +286,24 @@ function controlSystem(event) {
             drawScene(allVectors);
             break;
         case 80: //p
-            ZOOM_COEFFICIENT = ZOOM_COEFFICIENT + ZOOM_CHANGE
+            ZOOM_COEFFICIENT = ZOOM_COEFFICIENT + ZOOM_CHANGE;
+            if(ZOOM_COEFFICIENT>ZOOM_MAX){
+                ZOOM_COEFFICIENT = ZOOM_MAX;
+            }
             drawScene(allVectors);
             break;
         case 79: //o
-            ZOOM_COEFFICIENT = ZOOM_COEFFICIENT - ZOOM_CHANGE
+            ZOOM_COEFFICIENT = ZOOM_COEFFICIENT - ZOOM_CHANGE;
+            if(ZOOM_COEFFICIENT<ZOOM_MIN){
+                ZOOM_COEFFICIENT = ZOOM_MIN;
+            }
             drawScene(allVectors);
             break;
-        case 85: //u
+        case 75: //k
             rotatePicture(allPoints, "XB");
             drawScene(allVectors);
             break;
-        case 89: //y
+        case 73: //i
             rotatePicture(allPoints, "XF");
             drawScene(allVectors);
             break;
@@ -190,11 +315,11 @@ function controlSystem(event) {
             rotatePicture(allPoints, "ZB");
             drawScene(allVectors);
             break;
-        case 72: //h
+        case 74: //j
             rotatePicture(allPoints, "YF");
             drawScene(allVectors);
             break;
-        case 74: //j
+        case 76: //l
             rotatePicture(allPoints, "YB");
             drawScene(allVectors);
             break;
@@ -205,39 +330,39 @@ function controlSystem(event) {
 
 var points1 = [];
 //-40 + 30
-points1[0] = new Point3D(-20, -20, 20);
-points1[1] = new Point3D(-60, -20, 20);
-points1[2] = new Point3D(-60, 10, 20);
-points1[3] = new Point3D(-20, 10, 20);
+points1[0] = new Point3D(-20, -20, 50);
+points1[1] = new Point3D(-60, -20, 50);
+points1[2] = new Point3D(-60, 10, 50);
+points1[3] = new Point3D(-20, 10, 50);
 
-points1[4] = new Point3D(-20, -20, 50);
-points1[5] = new Point3D(-60, -20, 50);
-points1[6] = new Point3D(-60, 10, 50);
-points1[7] = new Point3D(-20, 10, 50);
+points1[4] = new Point3D(-20, -20, 80);
+points1[5] = new Point3D(-60, -20, 80);
+points1[6] = new Point3D(-60, 10, 80);
+points1[7] = new Point3D(-20, 10, 80);
 
 var points2 = [];
 //-30 + 70
-points2[0] = new Point3D(-20, -20, 55);
-points2[1] = new Point3D(-60, -20, 55);
-points2[2] = new Point3D(-60, 50, 55);
-points2[3] = new Point3D(-20, 50, 55);
+points2[0] = new Point3D(-20, -20, 95);
+points2[1] = new Point3D(-60, -20, 95);
+points2[2] = new Point3D(-60, 50, 95);
+points2[3] = new Point3D(-20, 50, 95);
 
-points2[4] = new Point3D(-20, -20, 85);
-points2[5] = new Point3D(-50, -20, 85);
-points2[6] = new Point3D(-50, 50, 85);
-points2[7] = new Point3D(-20, 50, 85);
+points2[4] = new Point3D(-20, -20, 125);
+points2[5] = new Point3D(-50, -20, 125);
+points2[6] = new Point3D(-50, 50, 125);
+points2[7] = new Point3D(-20, 50, 125);
 
 var points3 = [];
 //40 + 45
-points3[0] = new Point3D(20, -20, 25);
-points3[1] = new Point3D(60, -20, 25);
-points3[2] = new Point3D(60, 5, 25);
-points3[3] = new Point3D(20, 5, 25);
+points3[0] = new Point3D(20, -20, 55);
+points3[1] = new Point3D(60, -20, 55);
+points3[2] = new Point3D(60, 5, 55);
+points3[3] = new Point3D(20, 5, 55);
 
-points3[4] = new Point3D(20, -20, 70);
-points3[5] = new Point3D(60, -20, 70);
-points3[6] = new Point3D(60, 5, 70);
-points3[7] = new Point3D(20, 5, 70);
+points3[4] = new Point3D(20, -20, 100);
+points3[5] = new Point3D(60, -20, 100);
+points3[6] = new Point3D(60, 5, 100);
+points3[7] = new Point3D(20, 5, 100);
 
 var solid1 = makeSolidVectorsFromPoints(points1, "#FF0000 "); //red
 var solid2 = makeSolidVectorsFromPoints(points2, "#000000"); //black
